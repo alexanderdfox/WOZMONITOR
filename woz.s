@@ -645,6 +645,7 @@ colon_case:
     b process_loop
 
 r_case:
+    stp x29, x30, [sp, #-16]!  // save frame pointer and return address
     stp x19, x20, [sp, #-16]!  // save callee-saved registers
     
     // Print RUN message with address
@@ -655,18 +656,40 @@ r_case:
     // Load 64-bit address from XAM
     adrp x0, XAM@PAGE
     add x0, x0, XAM@PAGEOFF
-    ldr x0, [x0]
+    ldr x19, [x0]        // save address in x19
     
     // Print address as 16 hex digits
+    mov x0, x19
     bl print_hex_address
     
     // Print suffix
     adrp x0, run_msg_suffix@PAGE
     add x0, x0, run_msg_suffix@PAGEOFF
     bl print_str
+    
+    // Validate memory pointer
+    adrp x0, memory_ptr@PAGE
+    add x0, x0, memory_ptr@PAGEOFF
+    ldr x20, [x0]        // load memory base pointer
+    cbz x20, r_case_done // if null, don't execute
+    
+    // Check bounds (8GB = 0x200000000)
+    movz x0, #0x0000
+    movk x0, #0x2000, lsl #16
+    movk x0, #0x0000, lsl #32
+    cmp x19, x0
+    bge r_case_done      // address out of bounds
+    
+    // Calculate absolute address (memory_ptr + XAM offset)
+    add x19, x20, x19    // x19 now contains absolute address to execute
+    
+    // Execute code at address
+    // Use indirect branch to jump to the address
+    blr x19              // branch with link to address (if code returns, we'll continue)
 
 r_case_done:
     ldp x19, x20, [sp], #16
+    ldp x29, x30, [sp], #16
     b process_done
 
 invalid_char:
@@ -693,13 +716,13 @@ _main:
     // SP should already be aligned after the stp operations
     
     // Allocate 8GB of memory using mmap (matching M1 Pro unified memory)
-    // mmap(addr=0, len=8GB, prot=READ|WRITE, flags=MAP_ANONYMOUS|MAP_PRIVATE, fd=-1, offset=0)
+    // mmap(addr=0, len=8GB, prot=READ|WRITE|EXEC, flags=MAP_ANONYMOUS|MAP_PRIVATE, fd=-1, offset=0)
     load_syscall_mmap
     mov x0, #0            // addr (NULL = let kernel choose)
     movz x1, #0x0000      // len low 16 bits (8GB = 0x200000000)
     movk x1, #0x2000, lsl #16  // len middle 16 bits
     movk x1, #0x0000, lsl #32  // len high 16 bits
-    mov x2, #0x3          // prot: PROT_READ|PROT_WRITE
+    mov x2, #0x7          // prot: PROT_READ|PROT_WRITE|PROT_EXEC
     mov x3, #0x1002       // flags: MAP_ANONYMOUS|MAP_PRIVATE
     mov x4, #-1           // fd (-1 for anonymous)
     mov x5, #0            // offset

@@ -116,11 +116,17 @@ Type `.` to enter BLOCKXAM mode:
 
 #### Run Command
 
-Type `R` to display the current execution address:
+Type `R` to execute code at the current XAM address. The monitor will display the address and then jump to and execute the code at that location:
 ```
 > R
 RUN at 0000000000001000
 ```
+
+**Notes:**
+- The code at the specified address will be executed
+- If the code returns (via `ret` instruction), execution will continue in the monitor
+- If the code doesn't return or crashes, the monitor will terminate
+- Memory is executable, so you can write and run ARM64 assembly code
 
 ### Complete Example Session
 
@@ -163,16 +169,17 @@ Press `Ctrl+C` to exit the monitor.
 ## Technical Details
 
 - **Architecture**: ARM64 (Apple Silicon)
-- **Memory Management**: Dynamic allocation via `mmap` system call
+- **Memory Management**: Dynamic allocation via `mmap` system call with read, write, and execute permissions
 - **Stack Alignment**: 16-byte aligned for macOS compatibility
 - **Register Usage**: Follows ARM64 calling conventions (callee-saved registers preserved)
+- **Code Execution**: Memory is executable, allowing RUN command to execute ARM64 code
 
 ## Limitations
 
 - Memory is allocated at program startup (8GB)
 - No persistence - memory is cleared when program exits
 - Addresses must be within the 8GB workspace bounds
-- Memory is not executable (RUN command only displays address)
+- Executing invalid code may cause the program to crash
 
 ## Troubleshooting
 

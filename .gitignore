@@ -1,0 +1,23 @@
+# Build artifacts
+woz
+woz.o
+*.o
+*.out
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.log
+
